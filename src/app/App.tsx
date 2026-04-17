@@ -1,6 +1,7 @@
 import { POSProvider } from "./context/POSContext";
 import { AppRoutes } from "./routes";
-// import "../styles/main.css"; // La comentamos con // para que no tire error
+// Mantenemos el CSS comentado por ahora para evitar el error anterior
+// import "../styles/main.css"; 
 
 function App() {
   return (
