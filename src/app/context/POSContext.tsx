@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState } from 'react';
 
+// 1. Definimos cómo es un Producto, una Mesa y una Venta
 export interface Product {
   id: string;
   name: string;
   price: number;
-  category: string;
 }
 
 export interface OrderItem {
@@ -18,34 +18,24 @@ export interface OrderItem {
 export interface Table {
   id: string;
   number: string;
-  status: 'libre' | 'ocupada' | 'cerrando';
+  status: 'libre' | 'ocupada';
   items: OrderItem[];
   total: number;
 }
 
-export interface Sale {
-  id: string;
-  timestamp: string;
-  items: OrderItem[];
-  total: number;
-  type: 'mesa' | 'mostrador';
-}
-
+// 2. Definimos qué funciones vamos a usar en toda la app
 interface POSContextType {
   tables: Table[];
   products: Product[];
-  sales: Sale[];
   updateTable: (tableId: string, items: OrderItem[]) => void;
-  setTableStatus: (tableId: string, status: Table['status']) => void;
-  closeTable: (tableId: string) => void;
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  deleteProduct: (productId: string) => void;
-  getTodayStats: () => { totalSales: number; salesCount: number };
+  addProduct: (name: string, price: number) => void;
+  deleteProduct: (id: string) => void;
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
 
 export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Estado de las 5 mesas iniciales de Club 22
   const [tables, setTables] = useState<Table[]>([
     { id: '1', number: '1', status: 'libre', items: [], total: 0 },
     { id: '2', number: '2', status: 'libre', items: [], total: 0 },
@@ -55,55 +45,28 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ]);
 
   const [products, setProducts] = useState<Product[]>([
-    { id: '1', name: 'Malbec Reserva', price: 5000, category: 'Vinos' },
-    { id: '2', name: 'Cerveza Club 22', price: 3000, category: 'Bebidas' },
+    { id: '1', name: 'Cerveza', price: 3000 },
+    { id: '2', name: 'Vino Malbec', price: 5500 },
   ]);
-
-  const [sales, setSales] = useState<Sale[]>([]);
 
   const updateTable = (tableId: string, items: OrderItem[]) => {
     setTables(prev => prev.map(t => 
-      t.id === tableId ? { ...t, items, total: items.reduce((a, b) => a + b.subtotal, 0), status: items.length > 0 ? 'ocupada' : 'libre' } : t
+      t.id === tableId 
+        ? { ...t, items, total: items.reduce((a, b) => a + b.subtotal, 0), status: items.length > 0 ? 'ocupada' : 'libre' } 
+        : t
     ));
   };
 
-  const setTableStatus = (tableId: string, status: Table['status']) => {
-    setTables(prev => prev.map(t => t.id === tableId ? { ...t, status } : t));
-  };
-
-  const closeTable = (tableId: string) => {
-    const table = tables.find(t => t.id === tableId);
-    if (table && table.items.length > 0) {
-      setSales(prev => [...prev, { 
-        id: Date.now().toString(), 
-        timestamp: new Date().toISOString(), 
-        items: [...table.items], 
-        total: table.total, 
-        type: 'mesa' 
-      }]);
-      setTables(prev => prev.map(t => 
-        t.id === tableId ? { ...t, items: [], total: 0, status: 'libre' } : t
-      ));
-    }
-  };
-
-  const addProduct = (p: Omit<Product, 'id'>) => {
-    setProducts(prev => [...prev, { ...p, id: Date.now().toString() }]);
+  const addProduct = (name: string, price: number) => {
+    setProducts([...products, { id: Date.now().toString(), name, price }]);
   };
 
   const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+    setProducts(products.filter(p => p.id !== id));
   };
 
-  const getTodayStats = () => ({
-    totalSales: sales.reduce((a, b) => a + b.total, 0),
-    salesCount: sales.length
-  });
-
   return (
-    <POSContext.Provider value={{ 
-      tables, products, sales, updateTable, setTableStatus, closeTable, addProduct, deleteProduct, getTodayStats 
-    }}>
+    <POSContext.Provider value={{ tables, products, updateTable, addProduct, deleteProduct }}>
       {children}
     </POSContext.Provider>
   );
@@ -111,6 +74,6 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 export const usePOS = () => {
   const context = useContext(POSContext);
-  if (!context) throw new Error('usePOS must be used within POSProvider');
+  if (!context) throw new Error('usePOS debe usarse dentro de POSProvider');
   return context;
 };
