@@ -53,14 +53,18 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     { id: '4', number: '4', status: 'libre', items: [], total: 0 },
     { id: '5', number: '5', status: 'libre', items: [], total: 0 },
   ]);
+
   const [products, setProducts] = useState<Product[]>([
-    { id: '1', name: 'Malbec', price: 5000, category: 'Vinos' },
-    { id: '2', name: 'Cerveza', price: 3000, category: 'Bebidas' },
+    { id: '1', name: 'Malbec Reserva', price: 5000, category: 'Vinos' },
+    { id: '2', name: 'Cerveza Club 22', price: 3000, category: 'Bebidas' },
   ]);
+
   const [sales, setSales] = useState<Sale[]>([]);
 
   const updateTable = (tableId: string, items: OrderItem[]) => {
-    setTables(prev => prev.map(t => t.id === tableId ? { ...t, items, total: items.reduce((a, b) => a + b.subtotal, 0), status: items.length > 0 ? 'ocupada' : 'libre' } : t));
+    setTables(prev => prev.map(t => 
+      t.id === tableId ? { ...t, items, total: items.reduce((a, b) => a + b.subtotal, 0), status: items.length > 0 ? 'ocupada' : 'libre' } : t
+    ));
   };
 
   const setTableStatus = (tableId: string, status: Table['status']) => {
@@ -69,22 +73,37 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const closeTable = (tableId: string) => {
     const table = tables.find(t => t.id === tableId);
-    if (table) {
-      setSales(prev => [...prev, { id: Date.now().toString(), timestamp: new Date().toISOString(), items: table.items, total: table.total, type: 'mesa' }]);
-      setTables(prev => prev.map(t => t.id === tableId ? { ...t, items: [], total: 0, status: 'libre' } : t));
+    if (table && table.items.length > 0) {
+      setSales(prev => [...prev, { 
+        id: Date.now().toString(), 
+        timestamp: new Date().toISOString(), 
+        items: [...table.items], 
+        total: table.total, 
+        type: 'mesa' 
+      }]);
+      setTables(prev => prev.map(t => 
+        t.id === tableId ? { ...t, items: [], total: 0, status: 'libre' } : t
+      ));
     }
   };
 
-  const addProduct = (p: Omit<Product, 'id'>) => setProducts(prev => [...prev, { ...p, id: Date.now().toString() }]);
-  const deleteProduct = (id: string) => setProducts(prev => prev.filter(p => p.id !== id));
-  
+  const addProduct = (p: Omit<Product, 'id'>) => {
+    setProducts(prev => [...prev, { ...p, id: Date.now().toString() }]);
+  };
+
+  const deleteProduct = (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+  };
+
   const getTodayStats = () => ({
     totalSales: sales.reduce((a, b) => a + b.total, 0),
     salesCount: sales.length
   });
 
   return (
-    <POSContext.Provider value={{ tables, products, sales, updateTable, setTableStatus, closeTable, addProduct, deleteProduct, getTodayStats }}>
+    <POSContext.Provider value={{ 
+      tables, products, sales, updateTable, setTableStatus, closeTable, addProduct, deleteProduct, getTodayStats 
+    }}>
       {children}
     </POSContext.Provider>
   );
