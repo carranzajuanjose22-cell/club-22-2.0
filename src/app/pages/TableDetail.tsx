@@ -1,241 +1,111 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router";
-import { ArrowLeft, Plus, Printer, DollarSign, Trash2 } from "lucide-react";
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { usePOS } from "../context/POSContext";
-import { ProductSearchModal } from "../components/ProductSearchModal";
-import { OrderItem } from "../data/mockData";
+import { useParams, useNavigate } from "react-router";
+import { usePOS } from "../context/POSContext"; 
+import { ArrowLeft, Plus, Minus, Receipt } from "lucide-react";
 
 export function TableDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { tables, updateTable, closeTable, setTableStatus } = usePOS();
-  
-  const table = tables.find(t => t.id === id);
-  const [items, setItems] = useState<OrderItem[]>(table?.items || []);
-  const [showProductModal, setShowProductModal] = useState(false);
+  const { tables, products, updateTable } = usePOS();
 
-  // Sincroniza el estado local con el contexto global
-  useEffect(() => {
-    if (table) {
-      setItems(table.items);
-    }
-  }, [table]);
+  const table = tables.find((t) => t.id === id);
 
-  if (!table) {
-    return (
-      <div className="p-8 bg-[#0A0A0A] min-h-screen flex items-center justify-center">
-        <div className="text-center text-white">
-          <p className="text-xl mb-4">Mesa no encontrada</p>
-          <Link to="/">
-            <Button className="bg-[#C41E3A] hover:bg-[#A01830]">
-              Volver al inicio
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (!table) return <div className="p-10 text-white">Mesa no encontrada</div>;
 
-  const handleAddItem = (newItem: OrderItem) => {
-    const existingItemIndex = items.findIndex(item => item.productId === newItem.productId);
-    
-    let updatedItems;
-    if (existingItemIndex >= 0) {
-      updatedItems = [...items];
-      const newQuantity = updatedItems[existingItemIndex].quantity + newItem.quantity;
-      updatedItems[existingItemIndex] = {
-        ...updatedItems[existingItemIndex],
-        quantity: newQuantity,
-        subtotal: newQuantity * updatedItems[existingItemIndex].unitPrice
-      };
+  const handleAddProduct = (productId: string) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
+    const existingItem = table.items.find((item) => item.productId === productId);
+    let newItems;
+
+    if (existingItem) {
+      newItems = table.items.map((item) =>
+        item.productId === productId
+          ? { ...item, quantity: item.quantity + 1, subtotal: (item.quantity + 1) * item.unitPrice }
+          : item
+      );
     } else {
-      updatedItems = [...items, newItem];
+      newItems = [
+        ...table.items,
+        {
+          productId: product.id,
+          productName: product.name,
+          quantity: 1,
+          unitPrice: product.price,
+          subtotal: product.price,
+        },
+      ];
     }
-    
-    setItems(updatedItems);
-    updateTable(id!, updatedItems);
-    setShowProductModal(false);
+    updateTable(table.id, newItems);
   };
 
-  const handleRemoveItem = (productId: string) => {
-    const updatedItems = items.filter(item => item.productId !== productId);
-    setItems(updatedItems);
-    updateTable(id!, updatedItems);
-  };
+  const handleRemoveOne = (productId: string) => {
+    const existingItem = table.items.find((item) => item.productId === productId);
+    if (!existingItem) return;
 
-  const handleUpdateQuantity = (productId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      handleRemoveItem(productId);
-      return;
+    let newItems;
+    if (existingItem.quantity > 1) {
+      newItems = table.items.map((item) =>
+        item.productId === productId
+          ? { ...item, quantity: item.quantity - 1, subtotal: (item.quantity - 1) * item.unitPrice }
+          : item
+      );
+    } else {
+      newItems = table.items.filter((item) => item.productId !== productId);
     }
-
-    const updatedItems = items.map(item => {
-      if (item.productId === productId) {
-        return {
-          ...item,
-          quantity: newQuantity,
-          subtotal: item.unitPrice * newQuantity
-        };
-      }
-      return item;
-    });
-
-    setItems(updatedItems);
-    updateTable(id!, updatedItems);
+    updateTable(table.id, newItems);
   };
-
-  const handlePrintPreTicket = () => {
-    setTableStatus(id!, "cerrando");
-    // Aquí podrías integrar con una librería de impresión real en el futuro
-    alert(`Pre-ticket Mesa ${table.number} enviado a impresora térmica.`);
-  };
-
-  const handleCloseTable = () => {
-    const totalVenta = items.reduce((sum, item) => sum + item.subtotal, 0);
-    
-    if (window.confirm(`¿Confirmar cobro de $${totalVenta.toLocaleString()} para la Mesa ${table.number}?`)) {
-      closeTable(id!); // Esta función debe guardar la venta en el historial en tu POSContext
-      alert("Venta registrada y mesa liberada con éxito.");
-      navigate("/");
-    }
-  };
-
-  const total = items.reduce((sum, item) => sum + item.subtotal, 0);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto min-h-screen bg-[#0A0A0A]">
-      {/* Header con estilo Club 22 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <Link to="/">
-            <Button variant="outline" className="bg-transparent border-white/20 text-white hover:bg-[#2A2A2A] transition-colors">
-              <ArrowLeft className="w-5 h-5 mr-2" strokeWidth={1.5} />
-              Volver
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Mesa {table.number}</h1>
-            <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
-              table.status === 'ocupada' ? 'bg-[#C41E3A] text-white' : 'bg-yellow-600 text-white'
-            }`}>
-              {table.status}
-            </span>
-          </div>
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col md:flex-row">
+      <div className="flex-1 p-6 border-r border-white/5 flex flex-col">
+        <header className="flex items-center gap-4 mb-8">
+          <button onClick={() => navigate("/")} className="p-2 hover:bg-white/5 rounded-full">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-3xl font-black italic">MESA {table.number}</h1>
+        </header>
+
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {table.items.map((item) => (
+            <div key={item.productId} className="flex justify-between items-center bg-[#141414] p-4 rounded-xl border border-white/5">
+              <div>
+                <p className="font-bold">{item.productName}</p>
+                <p className="text-xs text-gray-500">${item.unitPrice} x {item.quantity}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="font-bold text-[#C41E3A]">${item.subtotal}</span>
+                <div className="flex bg-black rounded-lg border border-white/10">
+                  <button onClick={() => handleRemoveOne(item.productId)} className="p-2 hover:bg-white/5"><Minus size={16}/></button>
+                  <button onClick={() => handleAddProduct(item.productId)} className="p-2 hover:bg-white/5 border-l border-white/10"><Plus size={16}/></button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
-        <Button
-          onClick={() => setShowProductModal(true)}
-          className="bg-[#C41E3A] hover:bg-[#A01830] text-white font-bold h-12 shadow-lg shadow-red-900/20"
-        >
-          <Plus className="w-5 h-5 mr-2" strokeWidth={2} />
-          AGREGAR CONSUMO
-        </Button>
+        <footer className="mt-6 pt-6 border-t border-white/10">
+          <div className="flex justify-between mb-6">
+            <span className="text-gray-500 uppercase text-xs font-bold">Total</span>
+            <span className="text-5xl font-black text-[#C41E3A]">${table.total}</span>
+          </div>
+          <button className="w-full bg-[#C41E3A] py-4 rounded-2xl font-bold flex items-center justify-center gap-2">
+            <Receipt size={20} /> CERRAR CUENTA
+          </button>
+        </footer>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Detalle de la Comanda */}
-        <div className="lg:col-span-2">
-          <Card className="bg-[#141414] border-white/5 overflow-hidden">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-white mb-6 border-b border-white/10 pb-2">Resumen de Cuenta</h2>
-              
-              {items.length === 0 ? (
-                <div className="text-center py-20 text-gray-500">
-                  <p className="text-lg italic">La mesa está vacía</p>
-                  <p className="text-sm">Carga productos para ver el detalle</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {items.map((item) => (
-                    <div
-                      key={item.productId}
-                      className="flex items-center justify-between bg-[#1E1E1E] rounded-xl p-4 border border-white/5 transition-hover hover:border-white/20"
-                    >
-                      <div className="flex-1">
-                        <p className="text-white font-medium">{item.productName}</p>
-                        <p className="text-gray-400 text-sm">${item.unitPrice.toLocaleString()} x {item.quantity}</p>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center bg-[#2A2A2A] rounded-lg border border-white/10 p-1">
-                          <button
-                            onClick={() => handleUpdateQuantity(item.productId, item.quantity - 1)}
-                            className="w-8 h-8 flex items-center justify-center text-white hover:bg-[#C41E3A] rounded-md transition-colors"
-                          >
-                            -
-                          </button>
-                          <span className="w-10 text-center text-white font-bold">{item.quantity}</span>
-                          <button
-                            onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
-                            className="w-8 h-8 flex items-center justify-center text-white hover:bg-[#C41E3A] rounded-md transition-colors"
-                          >
-                            +
-                          </button>
-                        </div>
-                        
-                        <div className="w-24 text-right">
-                          <p className="text-white font-bold">${item.subtotal.toLocaleString()}</p>
-                        </div>
-
-                        <button
-                          onClick={() => handleRemoveItem(item.productId)}
-                          className="p-2 text-gray-500 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Totales y Finalización */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="bg-[#141414] border-white/5 p-6 border-t-4 border-t-[#C41E3A]">
-            <p className="text-gray-400 text-sm uppercase tracking-widest mb-1">Total Consumido</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl text-white font-light">$</span>
-              <span className="text-6xl text-white font-bold leading-none">{total.toLocaleString()}</span>
-            </div>
-          </Card>
-
-          <div className="space-y-3">
-            <Button
-              onClick={handlePrintPreTicket}
-              disabled={items.length === 0}
-              className="w-full h-16 bg-[#2A2A2A] hover:bg-[#333] text-white border border-white/10 text-lg rounded-xl"
-            >
-              <Printer className="w-6 h-6 mr-3" />
-              Pre-ticket
-            </Button>
-
-            <Button
-              onClick={handleCloseTable}
-              disabled={items.length === 0}
-              className="w-full h-16 bg-[#C41E3A] hover:bg-[#A01830] text-white text-xl font-bold rounded-xl shadow-lg shadow-red-900/40"
-            >
-              <DollarSign className="w-6 h-6 mr-2" />
-              COBRAR MESA
-            </Button>
-          </div>
-          
-          <p className="text-center text-gray-500 text-xs px-4 italic">
-            Al cobrar, la mesa se liberará automáticamente y el consumo se sumará al cierre de jornada de Club 22.
-          </p>
+      <div className="w-full md:w-80 bg-[#111111] p-6">
+        <h2 className="text-xs font-bold text-gray-500 uppercase mb-4">Productos</h2>
+        <div className="grid gap-2">
+          {products.map((p) => (
+            <button key={p.id} onClick={() => handleAddProduct(p.id)} className="flex justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:border-[#C41E3A]">
+              <span>{p.name}</span>
+              <span className="text-[#C41E3A] font-bold">${p.price}</span>
+            </button>
+          ))}
         </div>
       </div>
-
-      <ProductSearchModal
-        open={showProductModal}
-        onClose={() => setShowProductModal(false)}
-        onAddProduct={handleAddItem}
-        isTableView={true}
-      />
     </div>
   );
 }

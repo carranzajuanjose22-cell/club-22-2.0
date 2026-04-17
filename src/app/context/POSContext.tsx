@@ -1,41 +1,19 @@
 import React, { createContext, useContext, useState } from 'react';
 
-// 1. Definimos cómo es un Producto, una Mesa y una Venta
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-}
+// Tipos de datos para no cometer errores de escritura
+export interface Product { id: string; name: string; price: number; }
+export interface OrderItem { productId: string; productName: string; quantity: number; unitPrice: number; subtotal: number; }
+export interface Table { id: string; number: string; status: 'libre' | 'ocupada'; items: OrderItem[]; total: number; }
 
-export interface OrderItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-}
-
-export interface Table {
-  id: string;
-  number: string;
-  status: 'libre' | 'ocupada';
-  items: OrderItem[];
-  total: number;
-}
-
-// 2. Definimos qué funciones vamos a usar en toda la app
 interface POSContextType {
   tables: Table[];
   products: Product[];
   updateTable: (tableId: string, items: OrderItem[]) => void;
-  addProduct: (name: string, price: number) => void;
-  deleteProduct: (id: string) => void;
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
 
 export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Estado de las 5 mesas iniciales de Club 22
   const [tables, setTables] = useState<Table[]>([
     { id: '1', number: '1', status: 'libre', items: [], total: 0 },
     { id: '2', number: '2', status: 'libre', items: [], total: 0 },
@@ -44,9 +22,9 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     { id: '5', number: '5', status: 'libre', items: [], total: 0 },
   ]);
 
-  const [products, setProducts] = useState<Product[]>([
-    { id: '1', name: 'Cerveza', price: 3000 },
-    { id: '2', name: 'Vino Malbec', price: 5500 },
+  const [products] = useState<Product[]>([
+    { id: '1', name: 'Vino Malbec', price: 5000 },
+    { id: '2', name: 'Cerveza', price: 3000 },
   ]);
 
   const updateTable = (tableId: string, items: OrderItem[]) => {
@@ -57,16 +35,8 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ));
   };
 
-  const addProduct = (name: string, price: number) => {
-    setProducts([...products, { id: Date.now().toString(), name, price }]);
-  };
-
-  const deleteProduct = (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
-  };
-
   return (
-    <POSContext.Provider value={{ tables, products, updateTable, addProduct, deleteProduct }}>
+    <POSContext.Provider value={{ tables, products, updateTable }}>
       {children}
     </POSContext.Provider>
   );
