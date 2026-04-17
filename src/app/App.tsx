@@ -1,6 +1,13 @@
-import { RouterProvider } from "react-router";
-import { router } from "./routes";
+import { POSProvider } from "./context/POSContext";
+import { AppRoutes } from "./routes";
+import "../styles/main.css"; 
 
-export default function App() {
-  return <RouterProvider router={router} />;
+function App() {
+  return (
+    <POSProvider>
+      <AppRoutes />
+    </POSProvider>
+  );
 }
+
+export default App;
